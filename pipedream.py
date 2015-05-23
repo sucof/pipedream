@@ -13,19 +13,40 @@ import pickle
 #                      so ~grossly incandescent~
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-VERSION="v0p1"
+VERSION="ARISUN LIGHTS OUR PATH TO SALVATION"
 
-class socketMessage:
-  def __init__(self,direction,):
-    self.
+class socketConversation:
+  DIRECTION_FORWARD = 1
+  DIRECTION_BACK = 2
+
+  def __init__(self):
+    self.messages = []
+
+  def appendMessage(self,direction,message):
+    self.messages += (direction,message)
 
 def replay(_outHost,file):
   (outHost,outPort) = _outHost.split(":")
   print "[replay: %s:%d - %s]" % (outHost,int(outPort),file)
+  f = open(file,"r")
+  v = f.readline().rstrip()
+  global VERSION
+  if v != VERSION:
+    print "[err: version mismatch]"
+    return
+  cv = f.read()
+  conv = pickle.loads(cv)
+  print "[success]"
+  forwardSocket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+  forwardSocket.connect( (outHost, int(outPort))
+  # forwardSocket.settimeout(1)
+        
+  return
 
 # only start this when there's a connection
 def captureserver(clientsock,addr,_outHost,file,tag):
   BUFSIZE = 10240
+  conv = socketConversation()
   (outHost,outPort) = _outHost.split(":")
   forwardSocket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
   forwardSocket.connect( (outHost,int(outPort)) )
@@ -37,6 +58,7 @@ def captureserver(clientsock,addr,_outHost,file,tag):
       data = clientsock.recv(BUFSIZE)
       if not data: break
       forwardSocket.sendall(data)
+      conv.appendMessage(socketConversation.DIRECTION_FORWARD,data)
     except socket.timeout, e:
       pass
       # print "timeerror - forward"
@@ -47,13 +69,17 @@ def captureserver(clientsock,addr,_outHost,file,tag):
       data = forwardSocket.recv(BUFSIZE)
       if not data: break
       clientsock.sendall(data)
+      conv.appendMessage(socketConversation.DIRECTION_BACK,data)
     except socket.timeout, e:
       pass
-      # print "timeerror - back"
     except:
-      # print "dying"
       break
   print "[close: %04x]" % tag
+  global VERSION
+  f = open("%s-%d.cnv" % (file,tag),"w")
+  f.write(VERSION+"\n")
+  f.write(pickle.dumps(conv))
+  f.close()
   forwardSocket.close()
   clientsock.close()
 

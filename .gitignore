@@ -50,6 +50,9 @@ coverage.xml
 # Django stuff:
 *.log
 
+# socket conversation files
+*.cnv
+
 # Sphinx documentation
 docs/_build/
 
