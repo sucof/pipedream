@@ -8,10 +8,10 @@ import thread
 import random
 import pickle
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# The sun is a wondrous body, like a magnificent father - if only I could be
-#                      so ~grossly incandescent~
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~ The sun is a wondrous body, like a magnificent father - if only I could be ~
+# ~                       so ~grossly incandescent~                            ~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 VERSION="ARISUN LIGHTS OUR PATH TO SALVATION"
 
@@ -40,8 +40,7 @@ def replay(_outHost,file):
   forwardSocket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
   forwardSocket.connect( (outHost, int(outPort))
   # forwardSocket.settimeout(1)
-        
-  return
+  continueFlag = True
 
 # only start this when there's a connection
 def captureserver(clientsock,addr,_outHost,file,tag):
