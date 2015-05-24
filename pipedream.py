@@ -48,16 +48,14 @@ def replay(_outHost,file,sslreq):
 # only start this when there's a connection
 def captureserver(clientsock,addr,_outHost,file,tag,sslreq):
   BUFSIZE = 10240
-  print "new server"
   conv = socketConversation()
   (outHost,outPort) = _outHost.split(":")
   if sslreq:
     forwardSocket_ = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-    forwardSocket = ssl.wrap_socket(forwardSocket_,server_side = True,cert_reqs=ssl.CERT_REQUIRED)
+    forwardSocket = ssl.wrap_socket(forwardSocket_,cert_reqs=ssl.CERT_REQUIRED)
   else:
     forwardSocket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
   forwardSocket.connect( (outHost,int(outPort)) )
-  # okay, set timeouts.
   forwardSocket.settimeout(1)
   clientsock.settimeout(1)
   while True:
@@ -100,7 +98,6 @@ def capture(_inHost,_outHost,file,sslreq):
   while True:
     if sslreq:
       (clientsocket_,address) = serversocket.accept()
-      print "accept okay, trying to ssl wrap"
       clientsocket = ssl.wrap_socket(clientsocket_,server_side = True,certfile="server.crt",keyfile="server.key")
     else:
       print "attempting regular capture"
