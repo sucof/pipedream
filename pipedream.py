@@ -146,9 +146,6 @@ def main():
       sys.exit(2)
     elif o in ("-s","--ssl"):
       sslRequired = True
-      context = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
-      context.verify_mode = ssl.CERT_NONE
-      context.load_default_certs()
     else:
       print "error: unknown argument %s" % o
   if mode == "capture" and inHost is not None and outHost is not None and file is not None:
