@@ -64,21 +64,27 @@ def captureserver(clientsock,addr,_outHost,file,tag,sslreq):
       if not data: break
       forwardSocket.sendall(data)
       conv.appendMessage(socketConversation.DIRECTION_FORWARD,data)
-    except socket.timeout, e:
+    except socket.timeout:
       pass
-      # print "timeerror - forward"
-    except:
-      # print "dying"
-      break
+    except ssl.SSLError, e: 
+      if e.errno is None:
+        pass
+      else:
+        print "[err: %s]" % e.message
+        break
     try:
       data = forwardSocket.recv(BUFSIZE)
       if not data: break
       clientsock.sendall(data)
       conv.appendMessage(socketConversation.DIRECTION_BACK,data)
-    except socket.timeout, e:
+    except socket.timeout:
       pass
-    except:
-      break
+    except ssl.SSLError, e:
+      if e.errno is None:
+        pass
+      else:
+        print "[err: %s]" % e.message
+        break
   print "[close: %04x]" % tag
   global VERSION
   f = open("%s-%d.cnv" % (file,tag),"w")
