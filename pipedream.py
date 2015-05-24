@@ -2,6 +2,7 @@
 
 import os
 import sys
+import ssl
 import getopt
 import socket
 import thread
@@ -25,7 +26,7 @@ class socketConversation:
   def appendMessage(self,direction,message):
     self.messages += (direction,message)
 
-def replay(_outHost,file):
+def replay(_outHost,file,sslreq):
   (outHost,outPort) = _outHost.split(":")
   print "[replay: %s:%d - %s]" % (outHost,int(outPort),file)
   f = open(file,"r")
@@ -37,17 +38,24 @@ def replay(_outHost,file):
   cv = f.read()
   conv = pickle.loads(cv)
   print "[success]"
-  forwardSocket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-  forwardSocket.connect( (outHost, int(outPort))
-  # forwardSocket.settimeout(1)
-  continueFlag = True
+  if sslreq:
+    forwardSocket_ = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+    forwardSocket = ssl.wrap_socket(forwardSocket_,cert_reqs=ssl.CERT_REQUIRED)
+  else:
+    forwardSocket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+  forwardSocket.connect( (outHost, int(outPort)) )
 
 # only start this when there's a connection
-def captureserver(clientsock,addr,_outHost,file,tag):
+def captureserver(clientsock,addr,_outHost,file,tag,sslreq):
   BUFSIZE = 10240
+  print "new server"
   conv = socketConversation()
   (outHost,outPort) = _outHost.split(":")
-  forwardSocket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+  if sslreq:
+    forwardSocket_ = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+    forwardSocket = ssl.wrap_socket(forwardSocket_,server_side = True,cert_reqs=ssl.CERT_REQUIRED)
+  else:
+    forwardSocket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
   forwardSocket.connect( (outHost,int(outPort)) )
   # okay, set timeouts.
   forwardSocket.settimeout(1)
@@ -82,7 +90,7 @@ def captureserver(clientsock,addr,_outHost,file,tag):
   forwardSocket.close()
   clientsock.close()
 
-def capture(_inHost,_outHost,file):
+def capture(_inHost,_outHost,file,sslreq):
   (inHost,inPort) = _inHost.split(":")
   (outHost,outPort) = _outHost.split(":")
   serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -90,10 +98,16 @@ def capture(_inHost,_outHost,file):
   serversocket.listen(5)
   print "[%s:%d -> PROXY -> %s:%d] -> [%s]" % (inHost,int(inPort),outHost,int(outPort),file)
   while True:
-    (clientsocket,address) = serversocket.accept()
+    if sslreq:
+      (clientsocket_,address) = serversocket.accept()
+      print "accept okay, trying to ssl wrap"
+      clientsocket = ssl.wrap_socket(clientsocket_,server_side = True,certfile="server.crt",keyfile="server.key")
+    else:
+      print "attempting regular capture"
+      (clientsocket,address) = serversocket.accept()
     tag = random.randint(0,0xFFFF)
     print "[open: %04x]" % tag
-    thread.start_new_thread(captureserver, (clientsocket,address,_outHost,file,tag))
+    thread.start_new_thread(captureserver, (clientsocket,address,_outHost,file,tag,sslreq))
 
 def usage():
   print "-----------------------------------------"
@@ -103,6 +117,7 @@ def usage():
   print " -o host:port : output socket"
   print " -m [capture|replay] : select mode"
   print " -f filename : load or save to file"
+  print " -s : use ssl"
   print " -h : help"
   print "-----------------------------------------"
 
@@ -111,8 +126,9 @@ def main():
   outHost = None
   mode = None
   file = None
+  sslRequired = False
   try:
-    optlist,args = getopt.getopt(sys.argv[1:],"i:o:m:f:h",["in","out","mode","file","help"])
+    optlist,args = getopt.getopt(sys.argv[1:],"i:o:m:f:hs",["in","out","mode","file","help","ssl"])
   except getopt.GetoptError as err:
     print str(err)
     usage()
@@ -131,12 +147,14 @@ def main():
     elif o in ("-h","--help"):
       usage()
       sys.exit(2)
+    elif o in ("-s","--ssl"):
+      sslRequired = True
     else:
       print "error: unknown argument %s" % o
   if mode == "capture" and inHost is not None and outHost is not None and file is not None:
-    capture(inHost,outHost,file)
+    capture(inHost,outHost,file,sslRequired)
   elif mode == "replay" and outHost is not None and file is not None:
-    replay(outHost,file)
+    replay(outHost,file,sslRequired)
   else:
     print "nope"
     sys.exit(0)
