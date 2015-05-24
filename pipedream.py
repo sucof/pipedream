@@ -40,7 +40,7 @@ def replay(_outHost,file,sslreq):
   print "[success]"
   if sslreq:
     forwardSocket_ = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-    forwardSocket = ssl.wrap_socket(forwardSocket_,cert_reqs=ssl.CERT_REQUIRED)
+    forwardSocket = ssl.wrap_socket(forwardSocket_,cert_reqs=ssl.CERT_NONE)
   else:
     forwardSocket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
   forwardSocket.connect( (outHost, int(outPort)) )
@@ -52,7 +52,7 @@ def captureserver(clientsock,addr,_outHost,file,tag,sslreq):
   (outHost,outPort) = _outHost.split(":")
   if sslreq:
     forwardSocket_ = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-    forwardSocket = ssl.wrap_socket(forwardSocket_,cert_reqs=ssl.CERT_REQUIRED)
+    forwardSocket = ssl.wrap_socket(forwardSocket_,cert_reqs=ssl.CERT_NONE)
   else:
     forwardSocket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
   forwardSocket.connect( (outHost,int(outPort)) )
