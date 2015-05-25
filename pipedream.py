@@ -14,14 +14,53 @@ import pickle
 # ~                       so ~grossly incandescent~                            ~
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-VERSION="ARISUN LIGHTS OUR PATH TO SALVATION"
+VERSION="I AM SUN OF HOUSE ARISUN - AND I AM INVINCIBLE"
+
+class conversationEditor:
+  def __init__(self,f=None,interactive=True):
+    self.seqFile = None
+    self.sequence = socketConversation()
+    if f:
+      self.sequence.loadFromFile(f)
+    if interactive:
+      self.editShell()
+
+  def editShell(self):
+    continueFlag = True
+    while continueFlag:
+      q = raw_input(" > ").rstrip().lstrip()
+      commandTokens = q.split(" ")
+      c = commandTokens[0]
+      if c in ("q","quit"):
+        continueFlag = False
 
 class socketConversation:
   DIRECTION_FORWARD = 1
   DIRECTION_BACK = 2
 
-  def __init__(self):
-    self.messages = []
+  def __init__(self,f=None):
+    if f is not None:
+      self.loadFromFile(f)
+    else:
+      self.messages = []
+
+  def loadFromFile(self,filename):
+    f = file.open(filename,"r")
+    v = f.readline().rstrip()
+    global VERSION
+    if v != VERSION:
+      raise "[err: version mismatch]"
+    else:
+      cv = f.read()
+      self.messages = pickle.loads(cv)
+    f.close()
+  
+  def saveToFile(self,filename):
+    f = file.open(filename,"w")
+    global VERSION
+    f.writeline(VERSION)
+    f.write(pickle.dumps(self.messages))
+    f.close()
 
   def appendMessage(self,direction,message):
     self.messages += (direction,message)
@@ -29,14 +68,7 @@ class socketConversation:
 def replay(_outHost,file,sslreq):
   (outHost,outPort) = _outHost.split(":")
   print "[replay: %s:%d - %s]" % (outHost,int(outPort),file)
-  f = open(file,"r")
-  v = f.readline().rstrip()
-  global VERSION
-  if v != VERSION:
-    print "[err: version mismatch]"
-    return
-  cv = f.read()
-  conv = pickle.loads(cv)
+  conv = socketConversation(file)
   print "[success]"
   if sslreq:
     forwardSocket_ = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
@@ -86,11 +118,7 @@ def captureserver(clientsock,addr,_outHost,file,tag,sslreq):
         print "[err: %s]" % e.message
         break
   print "[close: %04x]" % tag
-  global VERSION
-  f = open("%s-%d.cnv" % (file,tag),"w")
-  f.write(VERSION+"\n")
-  f.write(pickle.dumps(conv))
-  f.close()
+  conv.saveToFile("%s-%d.cnv" % (file,tag))
   forwardSocket.close()
   clientsock.close()
 
@@ -118,7 +146,7 @@ def usage():
   print "-----------------------------------------"
   print " -i port : listening socket"
   print " -o host:port : output socket"
-  print " -m [capture|replay] : select mode"
+  print " -m [capture|replay|edit] : select mode"
   print " -f filename : load or save to file"
   print " -s : use ssl"
   print " -h : help"
@@ -127,6 +155,7 @@ def usage():
 def main():
   inHost = None
   outHost = None
+  editor = False
   mode = None
   file = None
   sslRequired = False
@@ -158,8 +187,10 @@ def main():
     capture(inHost,outHost,file,sslRequired)
   elif mode == "replay" and outHost is not None and file is not None:
     replay(outHost,file,sslRequired)
+  elif mode == "edit":
+    e = editFactory(file)
   else:
-    print "nope"
+    usage()
     sys.exit(0)
 
 if __name__ == "__main__":
