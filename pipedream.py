@@ -45,7 +45,7 @@ class socketConversation:
       self.messages = []
 
   def loadFromFile(self,filename):
-    f = file.open(filename,"r")
+    f = open(filename,"r")
     v = f.readline().rstrip()
     global VERSION
     if v != VERSION:
@@ -56,9 +56,9 @@ class socketConversation:
     f.close()
   
   def saveToFile(self,filename):
-    f = file.open(filename,"w")
+    f = open(filename,"w")
     global VERSION
-    f.writeline(VERSION)
+    f.write(VERSION)
     f.write(pickle.dumps(self.messages))
     f.close()
 
