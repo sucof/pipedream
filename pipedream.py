@@ -55,7 +55,7 @@ class socketConversation:
       self.messages = pickle.loads(cv)
     f.close()
   
-  def saveToFile(self,filename):
+  def saveTwrdSocket.settimeout(1)File(self,filename):
     f = open(filename,"w")
     global VERSION
     f.write(VERSION+"\n")
@@ -112,6 +112,10 @@ class replayClient:
 
   def disconnect(self):
     self.forwardSocket.close()
+
+def replayserver(_inHost,file,sslreq):
+  (inHost,inPort) = _inHost.split(":")
+  print "[replay server: %s:%d - %s]" % (inHost, int(inPort),file)
 
 # replay client only. there's another thing to replay the server.
 def replayclient(_outHost,file,sslreq):
