@@ -65,17 +65,61 @@ class socketConversation:
   def appendMessage(self,direction,message):
     self.messages += (direction,message)
 
-def replay(_outHost,file,sslreq):
+  def mutateMessage(self,m):
+    (direction, message) = m
+    return (direction,message)
+
+class replayClient:
+  def __init__(self,outHost,outPort,socketConv,sslreq=False):
+    self.outHost = outHost
+    self.outPort = outPort
+    self.socketConv = socketConv
+    self.sslreq = sslreq
+
+  def connect(self):
+    if self.sslreq:
+      forwardSocket_ = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+      forwardSocket = ssl.wrap_socket(forwardSocket_,cert_reqs=ssl.CERT_NONE)
+    else:
+      forwardSocket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+    forwardSocket.connect( (self.outHost, int(self.outPort)) )
+    forwardSocket.settimeout(1)
+    self.forwardSocket = forwardSocket
+
+  def play(self):
+    forwardSocket = self.forwardSocket
+    for i in range(0,len(self.socketConv.messages)):
+      (d,m) = self.socketConv.messages[i]
+      if d == socketConversation.DIRECTION_FORWARD:
+        forwardSocket.sendall(m)
+        print "send"
+      else:
+        try:
+          data = forwardSocket.recv(BUFSIZE)
+          if not data: continue
+          print "recv"
+        except socket.timeout:
+          pass
+        except ssl.SSLError, e:
+          if e.errno is None:
+            pass
+          else:
+            print "[err: %s]" % e.message
+            break
+
+  def disconnect(self):
+    self.forwardSocket.close()
+
+# replay client only. there's another thing to replay the server.
+def replayclient(_outHost,file,sslreq):
   (outHost,outPort) = _outHost.split(":")
-  print "[replay: %s:%d - %s]" % (outHost,int(outPort),file)
+  print "[replay client: %s:%d - %s]" % (outHost,int(outPort),file)
   conv = socketConversation(file)
+  rc = replayClient(outHost, outPort, conv, sslreq)
   print "[success]"
-  if sslreq:
-    forwardSocket_ = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-    forwardSocket = ssl.wrap_socket(forwardSocket_,cert_reqs=ssl.CERT_NONE)
-  else:
-    forwardSocket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-  forwardSocket.connect( (outHost, int(outPort)) )
+  for i in range(0,5):
+    rc.play()
+  rc.disconnect()
 
 # only start this when there's a connection
 def captureserver(clientsock,addr,_outHost,file,tag,sslreq):
@@ -134,7 +178,6 @@ def capture(_inHost,_outHost,file,sslreq):
       (clientsocket_,address) = serversocket.accept()
       clientsocket = ssl.wrap_socket(clientsocket_,server_side = True,certfile="server.crt",keyfile="server.key")
     else:
-      print "attempting regular capture"
       (clientsocket,address) = serversocket.accept()
     tag = random.randint(0,0xFFFF)
     print "[open: %04x]" % tag
@@ -185,8 +228,10 @@ def main():
       print "error: unknown argument %s" % o
   if mode == "capture" and inHost is not None and outHost is not None and file is not None:
     capture(inHost,outHost,file,sslRequired)
-  elif mode == "replay" and outHost is not None and file is not None:
-    replay(outHost,file,sslRequired)
+  elif mode in ("replay","replayclient") and outHost is not None and file is not None:
+    replayclient(outHost,file,sslRequired)
+  elif mode == "replayserver" and inHost is not None and file is not None:
+    replayserver(inHost,file,sslRequired)
   elif mode == "edit":
     e = editFactory(file)
   else:
