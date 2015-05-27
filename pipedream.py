@@ -58,16 +58,19 @@ class socketConversation:
   def saveToFile(self,filename):
     f = open(filename,"w")
     global VERSION
-    f.write(VERSION)
+    f.write(VERSION+"\n")
     f.write(pickle.dumps(self.messages))
     f.close()
 
   def appendMessage(self,direction,message):
-    self.messages += (direction,message)
+    self.messages += [(direction,message)]
 
   def mutateMessage(self,m):
     (direction, message) = m
     return (direction,message)
+
+  def fetchMessage(self,i):
+    return self.messages[i]
 
 class replayClient:
   def __init__(self,outHost,outPort,socketConv,sslreq=False):
@@ -89,7 +92,7 @@ class replayClient:
   def play(self):
     forwardSocket = self.forwardSocket
     for i in range(0,len(self.socketConv.messages)):
-      (d,m) = self.socketConv.messages[i]
+      (d,m) = self.socketConv.fetchMessage(i)
       if d == socketConversation.DIRECTION_FORWARD:
         forwardSocket.sendall(m)
         print "send"
@@ -117,6 +120,7 @@ def replayclient(_outHost,file,sslreq):
   conv = socketConversation(file)
   rc = replayClient(outHost, outPort, conv, sslreq)
   print "[success]"
+  rc.connect()
   for i in range(0,5):
     rc.play()
   rc.disconnect()
