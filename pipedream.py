@@ -55,7 +55,7 @@ class socketConversation:
       self.messages = pickle.loads(cv)
     f.close()
   
-  def saveTwrdSocket.settimeout(1)File(self,filename):
+  def saveToFile(self,filename):
     f = open(filename,"w")
     global VERSION
     f.write(VERSION+"\n")
