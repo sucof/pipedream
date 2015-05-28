@@ -72,6 +72,17 @@ class socketConversation:
   def fetchMessage(self,i):
     return self.messages[i]
 
+# here's the thing, 
+class replayServer:
+	def __init__(self,inHost,inPort,socketConv,sslreq=False):
+    self.outHost = outHost
+    self.outPort = outPort
+    self.socketConv = socketConv
+    self.sslreq = sslreq
+	
+	def run(self):
+		if self.sslreq:
+
 class replayClient:
   def __init__(self,outHost,outPort,socketConv,sslreq=False):
     self.outHost = outHost
@@ -95,12 +106,12 @@ class replayClient:
       (d,m) = self.socketConv.fetchMessage(i)
       if d == socketConversation.DIRECTION_FORWARD:
         forwardSocket.sendall(m)
-        print "send"
+        # print "send"
       else:
         try:
           data = forwardSocket.recv(BUFSIZE)
           if not data: continue
-          print "recv"
+          # print "recv"
         except socket.timeout:
           pass
         except ssl.SSLError, e:
@@ -113,9 +124,51 @@ class replayClient:
   def disconnect(self):
     self.forwardSocket.close()
 
+class replayServer:
+	def __init__(self,inHost,inPort,socketConv,ssqlreq=False)
+		self.inHost = inHost
+		self.inPort = inPort
+		self.socketConv = socketConv
+		self.sslreq = sslreq
+
+	def run(self):
+		serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		serversocket.bind( (self.inHost,int(self.inPort)) )
+		serversocket.listen(5)
+		while True:
+			if self.sslreq:
+				(clientsocket_,address) = serversocket.accept()
+				clientsocket = ssl.wrap_socket(clientsocket_,server_side = True,certfile="server.crt",keyfile="server.key")
+			else:
+				(clientsocket,address) = serversocket.accept()
+			thread.start_new_thread(self.replay_handler,(clientsocket,address))
+		
+	def replay_handler(self,clientsocket,address):
+		BUFSIZE = 10240
+		clientsock.settimeout(1)
+		for i in range(0,len(self.socketConv.messages)):
+			if d == socketConversation.DIRECTION_BACK:
+				clientsock.send(m)
+			else:
+				data = clientsock.recv(BUFSIZE)
+				if not data: continue
+				except socket.timeout:
+					pass
+				except ssl.SSLError, e:
+					if e.errno is None:
+						pass
+					else:
+						print "[err: %s]" % e.message
+            break
+		clientsock.close()
+
 def replayserver(_inHost,file,sslreq):
   (inHost,inPort) = _inHost.split(":")
+	rs = replayserver(self.inHost
   print "[replay server: %s:%d - %s]" % (inHost, int(inPort),file)
+	conv = socketConversation(file)
+	rs = replayServer(inHost,inPort,conv,sslreq)
+	rs.run()
 
 # replay client only. there's another thing to replay the server.
 def replayclient(_outHost,file,sslreq):
