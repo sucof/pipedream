@@ -16,14 +16,32 @@ import pickle
 
 VERSION="I AM SUN OF HOUSE ARISUN - AND I AM INVINCIBLE"
 
+def prettyPrint(direction,message):
+  if d == socketConversation.DIRECTION_FORWARD:
+    print "[ -> len:%d ]" % len(message)
+  else:
+    print "[ <- len:%d ]" % len(message)
+  for i in range(0,len(message)):
+    if i != 0 and i % 16 == 0:
+      print ""
+    print "%02x " %  (message[i]),
+
 class conversationEditor:
   def __init__(self,f=None,interactive=True):
-    self.seqFile = None
-    self.sequence = socketConversation()
+    self.sequence = None
     if f:
-      self.sequence.loadFromFile(f)
+      self.sequence = socketConversation(f)
     if interactive:
       self.editShell()
+
+  def printConversation(self):
+    if self.sequence is None:
+      print "[err: sequence not loaded]"
+      return
+    else:
+      for i in range(0,len(self.sequence.messages)):
+        (d,m) = self.sequence.fetchmessage(i)
+        prettyPrint(d,m)
 
   def editShell(self):
     continueFlag = True
@@ -33,6 +51,10 @@ class conversationEditor:
       c = commandTokens[0]
       if c in ("q","quit"):
         continueFlag = False
+      elif c in ("p","print"):
+        self.printConversation()
+      elif c in ("l","load") and len(commandTokens) == 2:
+        self.sequence = socketConversation(commandTokens[1]))
 
 class socketConversation:
   DIRECTION_FORWARD = 1
