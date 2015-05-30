@@ -15,7 +15,7 @@ import string
 # ~                       so ~grossly incandescent~                            ~
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-VERSION="I AM SUN OF HOUSE ARISUN - AND I AM INVINCIBLE"
+VERSION="I AM SUN OF HOUSE ARISUN"
 
 def prettyPrint(i,d,message):
   meow = ""
@@ -95,6 +95,7 @@ class conversationEditor:
     self.selectToken = None
     self.sequence = None
     self.saveFile = None
+    self.changeFlag = False
     print "---------------------------------------------------------------"
     self.help()
     print "---------------------------------------------------------------"
@@ -103,7 +104,6 @@ class conversationEditor:
       self.saveFile = f
     if interactive:
       self.editShell()
-    self.changeFlag = False
 
   def printConversation(self):
     if self.sequence is None:
@@ -114,22 +114,13 @@ class conversationEditor:
         (d,m) = self.sequence.fetchMessage(i)
         prettyPrintShort(i,d,m)
 
-  def help(self):
-    print " q: quit"
-    print " p [all | num] : print sequence / packet"
-    print " l [file]: load from file"
-    print " h: print help message"
-    print " s [num] : select a message"
-    print " f: flip selected packet"
-    print " d: delete selected packet"
-    print " e: edit selected packet"
-    print " s: [file?] save sequence to file (or current file)"
-
   def editPacketHelp(self):
     print " q: quit, without save"
     print " g: quit, with save (not to file)"
     print " w/s/a/d: control cursor"
     print " x [byte]: overwrite byte"
+    print " +: move byte forward"
+    print " -: move byte backward"
 
   # edit packet
   def editPacket(self,packet):
@@ -154,6 +145,18 @@ class conversationEditor:
         continueFlag = False
       elif c in ("h","help"):
         self.editPacketHelp()
+      elif c in ("+","-"):
+        cPos = selectedRow * 8 + selectedColumn
+        if c == "+" and cPos < len(m) - 1:
+          temp1 = m[cPos]
+          temp2 = m[cPos + 1]
+          m[cPos] = temp2
+          m[cPos + 1] = temp1
+        elif c == "-" and cPos > 0:
+          temp1 = m[cPos]
+          temp2 = m[cPos - 1]
+          m[cPos] = temp2
+          m[cPos - 1] = temp1
       elif c in ("w","s"):
         if c == "w" and selectedRow > 0:
           selectedRow -= 1
@@ -174,9 +177,26 @@ class conversationEditor:
         tempM[selectedRow * 8 + selectedColumn] = chr( int(commandTokens[1],16) )
         m = str(tempM)
 
+  def help(self):
+    print " q: quit"
+    print " p [all | num] : print sequence / packet"
+    print " l [file]: load from file"
+    print " h: print help message"
+    print " s [num] : select a message"
+    print " f: flip selected packet"
+    print " d: delete selected packet"
+    print " e: edit selected packet"
+    print " x [file]: export packet to file"
+    print " i [file]: import packet from file"
+    print " s: [file?] save sequence to file (or current file)"
+    print " -: move current selection backward"
+    print " +: move current selection forward"
+
   def editShell(self):
     continueFlag = True
     while continueFlag:
+      if self.changeFlag is True:
+        print " *",
       if self.selectToken is None:
         q = raw_input(" [####] : ").rstrip().lstrip()
       else:
@@ -213,8 +233,9 @@ class conversationEditor:
         self.selectToken = None
       elif c in ("f","flip"):
         try:
-          (d,m) = self.sequence.messages[self.selectToken]
-          self.sequence.messages[self.selectToken] = (2 - d + 1, m)
+          (d,m) = self.sequence.fetchMessage[self.selectToken]
+          # self.sequence.messages[self.selectToken] = (2 - d + 1, m)
+          self.sequence.setMessage(self.selectToken,(2 - d + 1, m))
           self.changeFlag = True
         except:
           print " [err: could not fetch message %d]" % self.selectToken
@@ -239,6 +260,39 @@ class conversationEditor:
         self.changeFlag = False
       elif c in ("e","edit") and self.selectToken is not None:
         self.editPacket(self.selectToken)
+      elif c in ("x","export") and self.selectToken is not None and len(commandTokens) == 2:
+        try:
+          (d,m) = self.sequence.fetchMessage(self.selectToken)
+          f = open(commandTokens[1],"wb")
+          f.write(m)
+          f.close()
+        except:
+          print " [err: probably misspelled filename]"
+      elif c in ("i","import") and len(commandTokens) == 2:
+        try:
+          f = open(commandTokens[1],"rb")
+          data = f.read()
+          f.close()
+          if self.selectToken is None:
+            self.sequence.appendMessage(socketConversation.DIRECTION_FORWARD,data)
+          else:
+            self.sequence.setMessage(self.selectToken,(socketConversation.DIRECTION_FORWARD,data))
+        except:
+          print " [err: probably misspelled filename]"
+      elif c == "-" and self.selectToken is not None:
+        if self.selectToken != 0:
+          temp1 = self.sequence.messages[self.selectToken]
+          temp2 = self.sequence.messages[self.selectToken - 1]
+          self.sequence.messages[self.selectToken - 1] = temp1
+          self.sequence.messages[self.selectToken] = temp2
+          self.changeFlag = True
+      elif c == "+" and self.selectToken is not None:
+        if self.selectToken + 1 < len(self.sequence.messages):
+          temp1 = self.sequence.messages[self.selectToken]
+          temp2 = self.sequence.messages[self.selectToken + 1]
+          self.sequence.messages[self.selectToken + 1] = temp1
+          self.sequence.messages[self.selectToken] = temp2
+          self.changeFlag = True
       elif c in ("h","help"):
         self.help()
 
