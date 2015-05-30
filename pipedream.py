@@ -16,21 +16,49 @@ import pickle
 
 VERSION="I AM SUN OF HOUSE ARISUN - AND I AM INVINCIBLE"
 
-def prettyPrint(direction,message):
+def prettyPrint(i,d,message):
   if d == socketConversation.DIRECTION_FORWARD:
-    print "[ -> len:%d ]" % len(message)
+    print " [ message %4d -> len:0x%08x ]" % (i,len(message))
   else:
-    print "[ <- len:%d ]" % len(message)
+    print " [ message %4d <- len:0x%08d ]" % (i,len(message))
+  print " [",
+  # totalLength = len(message) % 8
   for i in range(0,len(message)):
-    if i != 0 and i % 16 == 0:
+    if i != 0 and i % 8 == 0:
+      print "]\n [",
+    elif i != 0 and i % 4 == 0:
+      print "-",
+    print "%02x" %  int(ord(message[i])),
+  i += 1
+  while i % 8 != 0:
+    if i != 0 and i % 4 == 0:
+      print "-",
+    print "..",
+    i += 1
+  print "]"
+
+def prettyPrintShort(i,d,message):
+  if d == socketConversation.DIRECTION_FORWARD:
+    print " [ message %4d -> len:0x%08x ]" % (i,len(message)),
+  else:
+    print " [ message %4d <- len:0x%08d ]" % (i,len(message)),
+  print " [",
+  for i in range(0,len(message)):
+    if i != 0 and i % 8 == 0:
       print ""
-    print "%02x " %  (message[i]),
+    print "%02x " %  int(ord(message[i])),
+    if i == 7:
+      break
+  print "]"
 
 class conversationEditor:
   def __init__(self,f=None,interactive=True):
+    self.selectToken = None
     self.sequence = None
+    self.saveFile = None
     if f:
       self.sequence = socketConversation(f)
+      self.saveFile = f
     if interactive:
       self.editShell()
 
@@ -40,21 +68,81 @@ class conversationEditor:
       return
     else:
       for i in range(0,len(self.sequence.messages)):
-        (d,m) = self.sequence.fetchmessage(i)
-        prettyPrint(d,m)
+        (d,m) = self.sequence.fetchMessage(i)
+        prettyPrintShort(i,d,m)
+
+  def help(self):
+    print " q: quit"
+    print " p [all | num] : print sequence / packet"
+    print " l [file]: load from file"
+    print " h: print help message"
+    print " s [num] : select a message"
+    print " f: flip selected packet"
+    print " d: delete selected packet"
+    print " e: edit selected packet"
+    print " s: save sequence"
+  
+  def editPacket(self,tokenNum):
+    (d,m) = self.sequence.fetchMessage(tokenNum)
+    
 
   def editShell(self):
     continueFlag = True
     while continueFlag:
-      q = raw_input(" > ").rstrip().lstrip()
+      if self.selectToken is None:
+        q = raw_input(" [####] : ").rstrip().lstrip()
+      else:
+        q = raw_input(" [%4d] : " % self.selectToken).rstrip().lstrip()
       commandTokens = q.split(" ")
       c = commandTokens[0]
       if c in ("q","quit"):
         continueFlag = False
       elif c in ("p","print"):
-        self.printConversation()
+        if len(commandTokens) == 1:
+          if self.selectToken is None:
+            self.printConversation()
+          else:
+            (d,m) = self.sequence.fetchMessage(self.selectToken)
+            prettyPrint(self.selectToken,d,m)
+        elif len(commandTokens) == 2:
+          if commandTokens[1] in ("a","all"):
+            self.printConversation()
+          else:
+            i = int(commandTokens[1])
+            try:
+              (d,m) = self.sequence.fetchMessage(i)
+              prettyPrint(i,d,m)
+            except:
+              print " [err: could not fetch message %d]" % i
+      elif c in ("s","select") and len(commandTokens) == 2:
+        self.selectToken = int(commandTokens[1])
+        if self.selectToken > len(self.sequence.messages):
+          self.selectToken = None
+      elif c in ("f","flip"):
+        try:
+          (d,m) = self.selection.messages[self.selectToken])
+          self.selection.messages[self.selectToken] = (2 - d + 1, m)
+        except:
+          print " [err: could not fetch message %d] % self.selectToken
+      elif c in ("d","del","delete","rm"):
+        try:
+          del self.sequence.messages[self.selectToken]
+          if self.selectToken > len(self.sequence.messages):
+            self.selectToken = None
+        except:
+          print " [err: could not delete message %d] % self.selectToken
       elif c in ("l","load") and len(commandTokens) == 2:
-        self.sequence = socketConversation(commandTokens[1]))
+        self.sequence = socketConversation(commandTokens[1])
+        self.saveFile = commandTokens[1]
+      elif c in ("s","save"):
+        if len(commandTokens) == 2:
+          self.sequence.saveToFile(commandTokens[1])
+        elif self.saveFile is not None:
+          self.sequence.saveToFile(self.saveFile)
+      elif c in ("e","edit") and self.selectToken is not None:
+        self.editPacket(self.selectToken)
+      elif c in ("h","help"):
+        self.help()
 
 class socketConversation:
   DIRECTION_FORWARD = 1
@@ -310,7 +398,7 @@ def main():
   elif mode == "replayserver" and inHost is not None and file is not None:
     replayserver(inHost,file,sslRequired)
   elif mode == "edit":
-    e = editFactory(file)
+    e = conversationEditor(file)
   else:
     usage()
     sys.exit(0)
