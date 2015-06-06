@@ -6,7 +6,6 @@ import thread
 import ssl
 from sm import *
 
-# only start this when there's a connection
 def captureserver(clientsock,addr,_outHost,file,tag,sslreq):
   BUFSIZE = 10240
   conv = socketConversation()

@@ -36,9 +36,19 @@ class replayClient:
         else:
           forwardSocket.sendall(m)
       else:
+        if self.socketConv.messages[i].mandatory == True:
+          forwardSocket.settimeout(10000)
+        else:
+          forwardSocket.settimeout(1)
         try:
           data = forwardSocket.recv(10240)
-          if not data: continue
+          if not data:
+            continue
+          for m in self.socketConv.messages:
+            if m.direction == socketMessage.DIRECTION_FORWARD:
+              if m.checkBind(data):
+                forwardSocket.sendall(m.message)
+                break
         except socket.timeout:
           pass
         except ssl.SSLError, e:
@@ -51,7 +61,6 @@ class replayClient:
   def disconnect(self):
     self.forwardSocket.close()
 
-# replay client only. there's another thing to replay the server.
 def replayclient(_outHost,file,sslreq,mutChance):
   (outHost,outPort) = _outHost.split(":")
   print "[replay client: %s:%d - %s]" % (outHost,int(outPort),file)
@@ -59,6 +68,5 @@ def replayclient(_outHost,file,sslreq,mutChance):
   rc = replayClient(outHost, outPort, conv, sslreq, mutChance)
   print "[success]"
   rc.connect()
-  for i in range(0,5):
-    rc.play()
+  rc.play()
   rc.disconnect()

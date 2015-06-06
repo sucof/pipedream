@@ -14,11 +14,6 @@ from rs import *
 from rc import *
 from cs import *
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# ~ The sun is a wondrous body, like a magnificent father - if only I could be ~
-# ~                       so ~grossly incandescent~                            ~
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 def prettyPrint(i,d,message):
   meow = ""
   if d == socketConversation.DIRECTION_FORWARD:
@@ -272,8 +267,11 @@ class conversationEditor:
             self.sequence.messages[self.selectToken].delPython()
           else:
             self.sequence.messages[self.selectToken].setPython(commandTokens[1])
-        elif commandTokens[i] == "sendfirst":
-          self.sequence.messages[self.selectToken].setMandatory
+        elif commandTokens[i] == "mandatory" and len(commandTokens) == 3:
+          if commandTokens[2] == "yes":
+            self.sequence.messages[self.selectToken].setMandatory(True)
+          elif commandTokens[2] == "no":
+            self.sequence.messages[self.selectToken].setMandatory(False)
 
 def usage():
   print "-----------------------------------------"

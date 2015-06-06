@@ -36,9 +36,10 @@ class replayServer:
       thread.start_new_thread(self.replay_handler,(clientsocket,address))
 
   def replay_handler(self,clientsock,address):
-    if self.socketConv.messages[0].sendFirst() is True:
+    # if the first message is a server message...
+    if self.socketConv.messages[0].sendFirst() is True and self.socketconv.messages[i].direction == socketMessage.DIRECTION_BACK:
       clientsock.sendall(self.socketConv.messages[0].message)
-    clientsock.settimeout(5)
+    clientsock.settimeout(3)
     while True:
       try:
         data = clientsock.recv(10240)
@@ -58,4 +59,4 @@ class replayServer:
       for m in self.socketConv.messages:
         if m.checkBind(data):
           clientsock.sendall(m.message)
-          continue
+          break
