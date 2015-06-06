@@ -259,7 +259,7 @@ class conversationEditor:
         elif self.saveFile is not None:
           self.sequence.saveToFile(self.saveFile)
         self.changeFlag = False
-        elif c in ("e","edit") and self.selectToken is not None:
+      elif c in ("e","edit") and self.selectToken is not None:
         self.editPacket(self.selectToken)
       elif c in ("x","export") and self.selectToken is not None and len(commandTokens) == 2:
         try:
@@ -300,13 +300,13 @@ class conversationEditor:
             self.sequence.messages[self.selectToken].delPython()
           else:
             self.sequence.messages[self.selectToken].setPython(commandTokens[1])
-        elif commandTokens[i] == "mandatory" and len(commandTokens) == 3:
+        elif commandTokens[1] == "mandatory" and len(commandTokens) == 3:
           if commandTokens[2] == "yes":
             self.sequence.messages[self.selectToken].setMandatory(True)
           elif commandTokens[2] == "no":
             self.sequence.messages[self.selectToken].setMandatory(False)
       elif c in ("h","help"):
-        self.help()s
+        self.help()
 
 def usage():
   print "-----------------------------------------"
