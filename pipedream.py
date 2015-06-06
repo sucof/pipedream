@@ -371,7 +371,11 @@ class replayClient:
     for i in range(0,len(self.socketConv.messages)):
       (d,m) = self.socketConv.fetchMessage(i)
       if d == socketConversation.DIRECTION_FORWARD:
-        forwardSocket.sendall(m)
+        a = random.randint(0,100)
+        if a <= self.mutChance:
+          forwardSocket.sendall(self.socketConv.fetchMutated(i))
+        else:
+          forwardSocket.sendall(m)
         # print "send"
       else:
         try:
@@ -417,7 +421,11 @@ class replayServer:
       for i in range(0,len(self.socketConv.messages)):
         (d,m) = self.socketConv.fetchMessage(i)
         if d == socketConversation.DIRECTION_BACK:
-          clientsock.send(m)
+          a = random.randint(0,100):
+          if a <= self.mutChance:
+            clientsock.send(self.socketConv.fetchMutated(i))
+          else:
+            clientsock.send(m)
         else:
           try:
             data = clientsock.recv(BUFSIZE)
