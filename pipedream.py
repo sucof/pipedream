@@ -10,13 +10,14 @@ import random
 import pickle
 import string
 from sm import *
+from rs import *
+from rc import *
+from cs import *
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # ~ The sun is a wondrous body, like a magnificent father - if only I could be ~
 # ~                       so ~grossly incandescent~                            ~
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-VERSION="I AM SUN OF HOUSE ARISUN - AND I AM INVINCIBLE"
 
 def prettyPrint(i,d,message):
   meow = ""
@@ -112,8 +113,9 @@ class conversationEditor:
       return
     else:
       for i in range(0,len(self.sequence.messages)):
-        (d,m) = self.sequence.fetchMessage(i)
-        prettyPrintShort(i,d,m)
+        self.sequence.messages[i].prettyPrintShort(i)
+        #(d,m) = self.sequence.fetchMessage(i)
+        #prettyPrintShort(i,d,m)
 
   def editPacketHelp(self):
     print " q: quit, without save"
@@ -189,10 +191,10 @@ class conversationEditor:
     print " e: edit selected packet"
     print " x [file]: export packet to file"
     print " i [file]: import packet from file"
+    print " set python [file?]: bind python mutation code to packet"
+    print " set python None: remove python mutation code from packet"
+    print " bind [regexp]: bind words to server responses"
     print " save: [file?] save sequence to file (or current file)"
-    # print " m: mutate a single packet"
-    print " python [file]: attach a python script to packet"
-    print " rmpython: remove python script from packet"
     print " -: move current selection backward"
     print " +: move current selection forward"
 
@@ -264,266 +266,14 @@ class conversationEditor:
         elif self.saveFile is not None:
           self.sequence.saveToFile(self.saveFile)
         self.changeFlag = False
-      elif c == "python" and len(commandTokens) == 2 and self.selectToken is not None:
-        self.sequence.messages[self.selectToken].setPython(commandTokens[1])
-      elif c == "rmpython" and self.selectToken is not None:
-        self.sequence.messages[self.selectToken].delPython()
-      elif c in ("e","edit") and self.selectToken is not None:
-        self.editPacket(self.selectToken)
-      elif c in ("x","export") and self.selectToken is not None and len(commandTokens) == 2:
-        try:
-          (d,m) = self.sequence.fetchMessage(self.selectToken)
-          f = open(commandTokens[1],"wb")
-          f.write(m)
-          f.close()
-        except:
-          print " [err: probably misspelled filename]"
-      elif c in ("i","import") and len(commandTokens) == 2:
-        try:
-          f = open(commandTokens[1],"rb")
-          data = f.read()
-          f.close()
-          if self.selectToken is None:
-            self.sequence.appendMessage(socketConversation.DIRECTION_FORWARD,data)
+      elif c == "set" and len(commandTokens) > 2 and self.selectToken is not None:
+        if commandTokens[1] == "python" and len(commandTokens) == 3:
+          if commandTokens[2] == "None":
+            self.sequence.messages[self.selectToken].delPython()
           else:
-            self.sequence.setMessage(self.selectToken,(socketConversation.DIRECTION_FORWARD,data))
-        except:
-          print " [err: probably misspelled filename]"
-      elif c == "-" and self.selectToken is not None:
-        if self.selectToken != 0:
-          temp1 = self.sequence.messages[self.selectToken]
-          temp2 = self.sequence.messages[self.selectToken - 1]
-          self.sequence.messages[self.selectToken - 1] = temp1
-          self.sequence.messages[self.selectToken] = temp2
-          self.changeFlag = True
-      elif c == "+" and self.selectToken is not None:
-        if self.selectToken + 1 < len(self.sequence.messages):
-          temp1 = self.sequence.messages[self.selectToken]
-          temp2 = self.sequence.messages[self.selectToken + 1]
-          self.sequence.messages[self.selectToken + 1] = temp1
-          self.sequence.messages[self.selectToken] = temp2
-          self.changeFlag = True
-      elif c in ("h","help"):
-        self.help()
-
-class socketConversation:
-  DIRECTION_FORWARD = 1
-  DIRECTION_BACK = 2
-
-  def __init__(self,f=None):
-    if f is not None:
-      self.loadFromFile(f)
-    else:
-      self.messages = []
-
-  def loadFromFile(self,filename):
-    f = open(filename,"r")
-    v = f.readline().rstrip()
-    global VERSION
-    if v != VERSION:
-      raise BaseException("[err: version mismatch]")
-    else:
-      cv = f.read()
-      self.messages = pickle.loads(cv)
-    f.close()
-  
-  def saveToFile(self,filename):
-    f = open(filename,"w")
-    global VERSION
-    f.write(VERSION+"\n")
-    f.write(pickle.dumps(self.messages))
-    f.close()
-
-  def appendMessage(self,direction,message):
-    self.messages += [socketMessage(direction,message)]
-
-  def fetchMessage(self,i):
-    sm = self.messages[i]
-    return (sm.direction,sm.message)
-
-  def fetchMutated(self,i):
-    return self.messages[i].mutate()
-
-  def saveMessage(self,i,message):
-    (d,m) = message
-    self.messages[i] = socketMessage(d,m)
-
-class replayClient:
-  def __init__(self,outHost,outPort,socketConv,sslreq,mutChance):
-    self.outHost = outHost
-    self.outPort = outPort
-    self.socketConv = socketConv
-    self.sslreq = sslreq
-    self.mutChance = mutChance
-
-  def connect(self):
-    if self.sslreq:
-      forwardSocket_ = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-      forwardSocket = ssl.wrap_socket(forwardSocket_,cert_reqs=ssl.CERT_NONE)
-    else:
-      forwardSocket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-    forwardSocket.connect( (self.outHost, int(self.outPort)) )
-    forwardSocket.settimeout(1)
-    self.forwardSocket = forwardSocket
-
-  def play(self):
-    forwardSocket = self.forwardSocket
-    for i in range(0,len(self.socketConv.messages)):
-      (d,m) = self.socketConv.fetchMessage(i)
-      if d == socketConversation.DIRECTION_FORWARD:
-        a = random.randint(0,100)
-        if a <= self.mutChance:
-          forwardSocket.sendall(self.socketConv.fetchMutated(i))
-        else:
-          forwardSocket.sendall(m)
-        # print "send"
-      else:
-        try:
-          data = forwardSocket.recv(BUFSIZE)
-          if not data: continue
-          # print "recv"
-        except socket.timeout:
-          pass
-        except ssl.SSLError, e:
-          if e.errno is None:
-            pass
-          else:
-            print "[err: %s]" % e.message
-            break
-
-  def disconnect(self):
-    self.forwardSocket.close()
-
-class replayServer:
-  def __init__(self,inHost,inPort,socketConv,sslreq,mutChance):
-    self.inHost = inHost
-    self.inPort = inPort
-    self.socketConv = socketConv
-    self.sslreq = sslreq
-    self.mutChance = mutChance
-
-  def run(self):
-    serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    serversocket.bind( (self.inHost,int(self.inPort)) )
-    serversocket.listen(5)
-    while True:
-      if self.sslreq:
-        (clientsocket_,address) = serversocket.accept()
-        clientsocket = ssl.wrap_socket(clientsocket_,server_side = True,certfile="server.crt",keyfile="server.key")
-      else:
-        (clientsocket,address) = serversocket.accept()
-      thread.start_new_thread(self.replay_handler,(clientsocket,address))
-    
-  def replay_handler(self,clientsock,address):
-    try:
-      BUFSIZE = 10240
-      clientsock.settimeout(1)
-      for i in range(0,len(self.socketConv.messages)):
-        (d,m) = self.socketConv.fetchMessage(i)
-        if d == socketConversation.DIRECTION_BACK:
-          a = random.randint(0,100)
-          if a <= self.mutChance:
-            clientsock.send(self.socketConv.fetchMutated(i))
-          else:
-            clientsock.send(m)
-        else:
-          try:
-            data = clientsock.recv(BUFSIZE)
-            if not data: continue
-          except socket.timeout:
-            pass
-          except ssl.SSLError, e:
-            if e.errno is None:
-              pass
-            else:
-              print "[err: %s]" % e.message
-              break
-      clientsock.close()
-    except Exception, e:
-      print e.message
-
-def replayserver(_inHost,file,sslreq,mutChance):
-  (inHost,inPort) = _inHost.split(":")
-  # rs = replayServer(inHost,inPort,socketConversation(file),sslreq,mutChance)
-  # print "[replay server: %s:%d - %s]" % (inHost, int(inPort),file)
-  conv = socketConversation(file)
-  rs = replayServer(inHost,inPort,conv,sslreq,mutChance)
-  print "[replay server: %s:%d - %s]" % (inHost, int(inPort),file)
-  rs.run()
-
-# replay client only. there's another thing to replay the server.
-def replayclient(_outHost,file,sslreq,mutChance):
-  (outHost,outPort) = _outHost.split(":")
-  print "[replay client: %s:%d - %s]" % (outHost,int(outPort),file)
-  conv = socketConversation(file)
-  rc = replayClient(outHost, outPort, conv, sslreq, mutChance)
-  print "[success]"
-  rc.connect()
-  for i in range(0,5):
-    rc.play()
-  rc.disconnect()
-
-# only start this when there's a connection
-def captureserver(clientsock,addr,_outHost,file,tag,sslreq):
-  BUFSIZE = 10240
-  conv = socketConversation()
-  (outHost,outPort) = _outHost.split(":")
-  if sslreq:
-    forwardSocket_ = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-    forwardSocket = ssl.wrap_socket(forwardSocket_,cert_reqs=ssl.CERT_NONE)
-  else:
-    forwardSocket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-  forwardSocket.connect( (outHost,int(outPort)) )
-  forwardSocket.settimeout(1)
-  clientsock.settimeout(1)
-  while True:
-    try:
-      data = clientsock.recv(BUFSIZE)
-      if not data: break
-      forwardSocket.sendall(data)
-      conv.appendMessage(socketConversation.DIRECTION_FORWARD,data)
-    except socket.timeout:
-      pass
-    except ssl.SSLError, e: 
-      if e.errno is None:
-        pass
-      else:
-        print "[err: %s]" % e.message
-        break
-    try:
-      data = forwardSocket.recv(BUFSIZE)
-      if not data: break
-      clientsock.sendall(data)
-      conv.appendMessage(socketConversation.DIRECTION_BACK,data)
-    except socket.timeout:
-      pass
-    except ssl.SSLError, e:
-      if e.errno is None:
-        pass
-      else:
-        print "[err: %s]" % e.message
-        break
-  print "[close: %04x]" % tag
-  conv.saveToFile("%s-%d.cnv" % (file,tag))
-  forwardSocket.close()
-  clientsock.close()
-
-def capture(_inHost,_outHost,file,sslreq):
-  (inHost,inPort) = _inHost.split(":")
-  (outHost,outPort) = _outHost.split(":")
-  serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-  serversocket.bind( (inHost,int(inPort)) )
-  serversocket.listen(5)
-  print "[%s:%d -> PROXY -> %s:%d] -> [%s]" % (inHost,int(inPort),outHost,int(outPort),file)
-  while True:
-    if sslreq:
-      (clientsocket_,address) = serversocket.accept()
-      clientsocket = ssl.wrap_socket(clientsocket_,server_side = True,certfile="server.crt",keyfile="server.key")
-    else:
-      (clientsocket,address) = serversocket.accept()
-    tag = random.randint(0,0xFFFF)
-    print "[open: %04x]" % tag
-    thread.start_new_thread(captureserver, (clientsocket,address,_outHost,file,tag,sslreq))
+            self.sequence.messages[self.selectToken].setPython(commandTokens[1])
+        elif commandTokens[i] == "sendfirst":
+          self.sequence.messages[self.selectToken].setMandatory
 
 def usage():
   print "-----------------------------------------"

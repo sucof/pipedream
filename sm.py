@@ -35,6 +35,13 @@ class socketMessage:
     self.dict = strings
     self.bindings = []
     self.py = None
+    self.mandatory = False
+
+  def setMandatory(self,i):
+    self.mandatory = i
+
+  def getMandatory(self):
+    return self.mandatory
 
   def prettyPrintShort(self,i):
     d = self.direction
@@ -44,7 +51,9 @@ class socketMessage:
     if len(self.bindings) > 0:
       woof += "B%d " % len(self.bindings)
     if self.py is not None:
-      woof += "P"
+      woof += "P "
+    if self.mandatory is True:
+      woof += "M "
     if d == socketConversation.DIRECTION_FORWARD:
       print " [ %d -> len:0x%04x ]" % (i,len(message)),
     else:
@@ -71,7 +80,10 @@ class socketMessage:
   def bindWord(self,word):
     self.bindings.append(re.compile(word))
 
+  # does this response match the current binding?
   def checkBind(self,message):
+    if len(self.bindings) == 0:
+      return False
     for word in self.bindings:
       if word.match(message) is None:
         return False
