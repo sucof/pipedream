@@ -230,15 +230,21 @@ class conversationEditor:
         except:
           print " [err: could not fetch message %d]" % self.selectToken
       elif c in ("d","del","delete","rm"):
-        try:
-          del self.sequence.messages[self.selectToken]
-          if self.selectToken > len(self.sequence.messages):
+        if len(commandTokens) == 1:
+          try:
+            del self.sequence.messages[self.selectToken]
+            if self.selectToken > len(self.sequence.messages):
+              self.selectToken = None
+            self.changeFlag = True
+          except:
+            print " [err: could not delete message %d]" % self.selectToken
+          if self.selectToken > len(self.sequence.messages) - 1:
             self.selectToken = None
-          self.changeFlag = True
-        except:
-          print " [err: could not delete message %d]" % self.selectToken
-        if self.selectToken > len(self.sequence.messages) - 1:
-          self.selectToken = None
+        else:
+          try:
+            del self.sequence.messages[int(commandTokens[1])]
+          except:
+            print " [err: could not delete message %s]" % commandTokens[1]
       elif c in ("l","load") and len(commandTokens) == 2:
         self.sequence = socketConversation(commandTokens[1])
         self.saveFile = commandTokens[1]
@@ -286,6 +292,8 @@ class conversationEditor:
       elif c == "swallow" and self.selectToken is not None and len(commandTokens) == 2:
         self.sequence.messages[self.selectToken].swallow(self.sequence.messages[int(commandTokens[1])].message)
         del(self.sequence.messages[int(commandTokens[1])])
+      elif c == "bind" and len(commandTokens) == 2 and self.selectToken is not None:
+        self.sequence.messages[self.selectToken].bindWord(commandTokens[1])
       elif c == "set" and len(commandTokens) > 2 and self.selectToken is not None:
         if commandTokens[1] == "python" and len(commandTokens) == 3:
           if commandTokens[2] == "None":

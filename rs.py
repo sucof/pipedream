@@ -37,8 +37,11 @@ class replayServer:
 
   def replay_handler(self,clientsock,address):
     # if the first message is a server message...
-    if self.socketConv.messages[0].sendFirst() is True and self.socketconv.messages[i].direction == socketMessage.DIRECTION_BACK:
-      clientsock.sendall(self.socketConv.messages[0].message)
+    if self.socketConv.messages[0].mandatory is True and self.socketconv.messages[i].direction == socketMessage.DIRECTION_BACK:
+      if random.randint(0,100) <= self.mutChance:
+        clientsock.sendall(self.socketConv.fetchMutated(0))
+      else:
+        clientsock.sendall(self.socketConv.messages[0].message)
     clientsock.settimeout(3)
     while True:
       try:
@@ -56,7 +59,13 @@ class replayServer:
         else:
           print "[err: %s]" % e.message
           break
-      for m in self.socketConv.messages:
-        if m.checkBind(data):
-          clientsock.sendall(m.message)
-          break
+      try:
+        for m in range(0,len(self.socketConv.messages)):
+          if self.socketConv.messages[m].checkBind(data):
+            if random.randint(0,100) <= self.mutChance:
+              clientsock.sendall(self.socketConv.fetchMutated(m))
+            else:
+              clientsock.sendall(self.socketConv.messages[m].message)
+            break
+      except:
+        continue
