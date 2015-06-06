@@ -9,13 +9,14 @@ import thread
 import random
 import pickle
 import string
+from sm import *
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # ~ The sun is a wondrous body, like a magnificent father - if only I could be ~
 # ~                       so ~grossly incandescent~                            ~
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-VERSION="I AM SUN OF HOUSE ARISUN"
+VERSION="I AM SUN OF HOUSE ARISUN - AND I AM INVINCIBLE"
 
 def prettyPrint(i,d,message):
   meow = ""
@@ -188,7 +189,10 @@ class conversationEditor:
     print " e: edit selected packet"
     print " x [file]: export packet to file"
     print " i [file]: import packet from file"
-    print " s: [file?] save sequence to file (or current file)"
+    print " save: [file?] save sequence to file (or current file)"
+    # print " m: mutate a single packet"
+    print " python [file]: attach a python script to packet"
+    print " rmpython: remove python script from packet"
     print " -: move current selection backward"
     print " +: move current selection forward"
 
@@ -231,10 +235,12 @@ class conversationEditor:
           self.selectToken = None
       elif c in ("s","select") and len(commandTokens) == 1:
         self.selectToken = None
-      elif c in ("f","flip"):
+      # elif c in ("m","mutate") and self.selectToken is not None:
+      #   sm = self.sequence.messages[self.selectToken].mutate()
+      #   print sm
+      elif c in ("f","flip") and self.selectToken is not None:
         try:
           (d,m) = self.sequence.fetchMessage[self.selectToken]
-          # self.sequence.messages[self.selectToken] = (2 - d + 1, m)
           self.sequence.setMessage(self.selectToken,(2 - d + 1, m))
           self.changeFlag = True
         except:
@@ -252,12 +258,16 @@ class conversationEditor:
       elif c in ("l","load") and len(commandTokens) == 2:
         self.sequence = socketConversation(commandTokens[1])
         self.saveFile = commandTokens[1]
-      elif c in ("s","save"):
+      elif c == "save":
         if len(commandTokens) == 2:
           self.sequence.saveToFile(commandTokens[1])
         elif self.saveFile is not None:
           self.sequence.saveToFile(self.saveFile)
         self.changeFlag = False
+      elif c == "python" and len(commandTokens) == 2 and self.selectToken is not None:
+        self.sequence.messages[self.selectToken].setPython(commandTokens[1])
+      elif c == "rmpython" and self.selectToken is not None:
+        self.sequence.messages[self.selectToken].delPython()
       elif c in ("e","edit") and self.selectToken is not None:
         self.editPacket(self.selectToken)
       elif c in ("x","export") and self.selectToken is not None and len(commandTokens) == 2:
@@ -311,7 +321,7 @@ class socketConversation:
     v = f.readline().rstrip()
     global VERSION
     if v != VERSION:
-      raise "[err: version mismatch]"
+      raise BaseException("[err: version mismatch]")
     else:
       cv = f.read()
       self.messages = pickle.loads(cv)
@@ -325,25 +335,26 @@ class socketConversation:
     f.close()
 
   def appendMessage(self,direction,message):
-    self.messages += [(direction,message)]
-
-  def mutateMessage(self,m):
-    (direction, message) = m
-    return (direction,message)
+    self.messages += [socketMessage(direction,message)]
 
   def fetchMessage(self,i):
-    return self.messages[i]
+    sm = self.messages[i]
+    return (sm.direction,sm.message)
+
+  def fetchMutated(self,i):
+    return self.messages[i].mutate()
 
   def saveMessage(self,i,message):
     (d,m) = message
-    self.messages[i] = (d,m)
+    self.messages[i] = socketMessage(d,m)
 
 class replayClient:
-  def __init__(self,outHost,outPort,socketConv,sslreq=False):
+  def __init__(self,outHost,outPort,socketConv,sslreq=False,mutChance):
     self.outHost = outHost
     self.outPort = outPort
     self.socketConv = socketConv
     self.sslreq = sslreq
+    self.mutChance = mutChance
 
   def connect(self):
     if self.sslreq:
@@ -380,11 +391,12 @@ class replayClient:
     self.forwardSocket.close()
 
 class replayServer:
-  def __init__(self,inHost,inPort,socketConv,sslreq=False):
+  def __init__(self,inHost,inPort,socketConv,sslreq=False,mutChance):
     self.inHost = inHost
     self.inPort = inPort
     self.socketConv = socketConv
     self.sslreq = sslreq
+    self.mutChance = mutChance
 
   def run(self):
     serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -422,20 +434,20 @@ class replayServer:
     except Exception, e:
       print e.message
 
-def replayserver(_inHost,file,sslreq):
+def replayserver(_inHost,file,sslreq,mutChance):
   (inHost,inPort) = _inHost.split(":")
-  rs = replayServer(inHost,inPort,socketConversation(file),sslreq)
+  rs = replayServer(inHost,inPort,socketConversation(file),sslreq,mutChance)
   print "[replay server: %s:%d - %s]" % (inHost, int(inPort),file)
   conv = socketConversation(file)
   rs = replayServer(inHost,inPort,conv,sslreq)
   rs.run()
 
 # replay client only. there's another thing to replay the server.
-def replayclient(_outHost,file,sslreq):
+def replayclient(_outHost,file,sslreq,mutChance):
   (outHost,outPort) = _outHost.split(":")
   print "[replay client: %s:%d - %s]" % (outHost,int(outPort),file)
   conv = socketConversation(file)
-  rc = replayClient(outHost, outPort, conv, sslreq)
+  rc = replayClient(outHost, outPort, conv, sslreq, mutChance)
   print "[success]"
   rc.connect()
   for i in range(0,5):
@@ -508,10 +520,11 @@ def usage():
   print "-----------------------------------------"
   print " project pipedream"
   print "-----------------------------------------"
-  print " -i port : listening socket"
+  print " -i host:port : listening socket"
   print " -o host:port : output socket"
   print " -m [capture|replay|edit] : select mode"
   print " -f filename : load or save to file"
+  print " --mutChance [mut%] : % of mutation"
   print " -s : use ssl"
   print " -h : help"
   print "-----------------------------------------"
@@ -523,8 +536,9 @@ def main():
   mode = None
   file = None
   sslRequired = False
+  mutChance = 0
   try:
-    optlist,args = getopt.getopt(sys.argv[1:],"i:o:m:f:hs",["in","out","mode","file","help","ssl"])
+    optlist,args = getopt.getopt(sys.argv[1:],"i:o:m:f:hs",["in","out","mode","file","help","ssl","mutChance"])
   except getopt.GetoptError as err:
     print str(err)
     usage()
@@ -540,6 +554,8 @@ def main():
       file = a
     elif o in ("-m","--mode"):
       mode = a
+    elif o in ("--mutChance"):
+      mutChance = int(a)
     elif o in ("-h","--help"):
       usage()
       sys.exit(2)
@@ -550,9 +566,9 @@ def main():
   if mode == "capture" and inHost is not None and outHost is not None and file is not None:
     capture(inHost,outHost,file,sslRequired)
   elif mode in ("replay","replayclient") and outHost is not None and file is not None:
-    replayclient(outHost,file,sslRequired)
+    replayclient(outHost,file,sslRequired,mutChance)
   elif mode == "replayserver" and inHost is not None and file is not None:
-    replayserver(inHost,file,sslRequired)
+    replayserver(inHost,file,sslRequired,mutChance)
   elif mode == "edit":
     e = conversationEditor(file)
   else:
