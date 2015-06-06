@@ -37,6 +37,9 @@ class socketMessage:
     self.py = None
     self.mandatory = False
 
+  def swallow(self,data):
+    self.message += data
+
   def setMandatory(self,i):
     self.mandatory = i
 
