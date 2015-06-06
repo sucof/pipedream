@@ -349,7 +349,7 @@ class socketConversation:
     self.messages[i] = socketMessage(d,m)
 
 class replayClient:
-  def __init__(self,outHost,outPort,socketConv,sslreq=False,mutChance):
+  def __init__(self,outHost,outPort,socketConv,sslreq,mutChance):
     self.outHost = outHost
     self.outPort = outPort
     self.socketConv = socketConv
@@ -395,7 +395,7 @@ class replayClient:
     self.forwardSocket.close()
 
 class replayServer:
-  def __init__(self,inHost,inPort,socketConv,sslreq=False,mutChance):
+  def __init__(self,inHost,inPort,socketConv,sslreq,mutChance):
     self.inHost = inHost
     self.inPort = inPort
     self.socketConv = socketConv
@@ -421,7 +421,7 @@ class replayServer:
       for i in range(0,len(self.socketConv.messages)):
         (d,m) = self.socketConv.fetchMessage(i)
         if d == socketConversation.DIRECTION_BACK:
-          a = random.randint(0,100):
+          a = random.randint(0,100)
           if a <= self.mutChance:
             clientsock.send(self.socketConv.fetchMutated(i))
           else:
@@ -444,10 +444,11 @@ class replayServer:
 
 def replayserver(_inHost,file,sslreq,mutChance):
   (inHost,inPort) = _inHost.split(":")
-  rs = replayServer(inHost,inPort,socketConversation(file),sslreq,mutChance)
-  print "[replay server: %s:%d - %s]" % (inHost, int(inPort),file)
+  # rs = replayServer(inHost,inPort,socketConversation(file),sslreq,mutChance)
+  # print "[replay server: %s:%d - %s]" % (inHost, int(inPort),file)
   conv = socketConversation(file)
-  rs = replayServer(inHost,inPort,conv,sslreq)
+  rs = replayServer(inHost,inPort,conv,sslreq,mutChance)
+  print "[replay server: %s:%d - %s]" % (inHost, int(inPort),file)
   rs.run()
 
 # replay client only. there's another thing to replay the server.
@@ -532,7 +533,7 @@ def usage():
   print " -o host:port : output socket"
   print " -m [capture|replay|edit] : select mode"
   print " -f filename : load or save to file"
-  print " --mutChance [mut%] : % of mutation"
+  print " -c [mut%] : % of mutation"
   print " -s : use ssl"
   print " -h : help"
   print "-----------------------------------------"
@@ -546,7 +547,7 @@ def main():
   sslRequired = False
   mutChance = 0
   try:
-    optlist,args = getopt.getopt(sys.argv[1:],"i:o:m:f:hs",["in","out","mode","file","help","ssl","mutChance"])
+    optlist,args = getopt.getopt(sys.argv[1:],"i:o:m:f:c:hs",["in","out","mode","file","chance","help","ssl"])
   except getopt.GetoptError as err:
     print str(err)
     usage()
@@ -562,7 +563,7 @@ def main():
       file = a
     elif o in ("-m","--mode"):
       mode = a
-    elif o in ("--mutChance"):
+    elif o in ("-c","--chance"):
       mutChance = int(a)
     elif o in ("-h","--help"):
       usage()
