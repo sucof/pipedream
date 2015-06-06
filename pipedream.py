@@ -188,6 +188,7 @@ class conversationEditor:
     print " i [file]: import packet from file"
     print " set python [file?]: bind python mutation code to packet"
     print " set python None: remove python mutation code from packet"
+    print " set mandatory [yes/no]: do we have to send a given packet"
     print " bind [regexp]: bind words to server responses"
     print " save: [file?] save sequence to file (or current file)"
     print " -: move current selection backward"
@@ -232,9 +233,6 @@ class conversationEditor:
           self.selectToken = None
       elif c in ("s","select") and len(commandTokens) == 1:
         self.selectToken = None
-      # elif c in ("m","mutate") and self.selectToken is not None:
-      #   sm = self.sequence.messages[self.selectToken].mutate()
-      #   print sm
       elif c in ("f","flip") and self.selectToken is not None:
         try:
           (d,m) = self.sequence.fetchMessage[self.selectToken]
@@ -261,6 +259,41 @@ class conversationEditor:
         elif self.saveFile is not None:
           self.sequence.saveToFile(self.saveFile)
         self.changeFlag = False
+        elif c in ("e","edit") and self.selectToken is not None:
+        self.editPacket(self.selectToken)
+      elif c in ("x","export") and self.selectToken is not None and len(commandTokens) == 2:
+        try:
+          (d,m) = self.sequence.fetchMessage(self.selectToken)
+          f = open(commandTokens[1],"wb")
+          f.write(m)
+          f.close()
+        except:
+          print " [err: probably misspelled filename]"
+      elif c in ("i","import") and len(commandTokens) == 2:
+        try:
+          f = open(commandTokens[1],"rb")
+          data = f.read()
+          f.close()
+          if self.selectToken is None:
+            self.sequence.appendMessage(socketConversation.DIRECTION_FORWARD,data)
+          else:
+            self.sequence.setMessage(self.selectToken,(socketConversation.DIRECTION_FORWARD,data))
+        except:
+          print " [err: probably misspelled filename]"
+      elif c == "-" and self.selectToken is not None:
+        if self.selectToken != 0:
+          temp1 = self.sequence.messages[self.selectToken]
+          temp2 = self.sequence.messages[self.selectToken - 1]
+          self.sequence.messages[self.selectToken - 1] = temp1
+          self.sequence.messages[self.selectToken] = temp2
+          self.changeFlag = True
+      elif c == "+" and self.selectToken is not None:
+        if self.selectToken + 1 < len(self.sequence.messages):
+          temp1 = self.sequence.messages[self.selectToken]
+          temp2 = self.sequence.messages[self.selectToken + 1]
+          self.sequence.messages[self.selectToken + 1] = temp1
+          self.sequence.messages[self.selectToken] = temp2
+          self.changeFlag = True
       elif c == "set" and len(commandTokens) > 2 and self.selectToken is not None:
         if commandTokens[1] == "python" and len(commandTokens) == 3:
           if commandTokens[2] == "None":
@@ -272,6 +305,8 @@ class conversationEditor:
             self.sequence.messages[self.selectToken].setMandatory(True)
           elif commandTokens[2] == "no":
             self.sequence.messages[self.selectToken].setMandatory(False)
+      elif c in ("h","help"):
+        self.help()s
 
 def usage():
   print "-----------------------------------------"

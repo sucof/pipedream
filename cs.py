@@ -16,8 +16,8 @@ def captureserver(clientsock,addr,_outHost,file,tag,sslreq):
   else:
     forwardSocket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
   forwardSocket.connect( (outHost,int(outPort)) )
-  forwardSocket.settimeout(1)
-  clientsock.settimeout(1)
+  forwardSocket.settimeout(2)
+  clientsock.settimeout(2)
   while True:
     try:
       data = clientsock.recv(BUFSIZE)
