@@ -81,10 +81,14 @@ Now, select the second node, and bind it to the GET keyword:
 
     s 1
     bind .*GET.*
+    p all
     save
 
 Now, emulate the server with the following:
 
     python pipedream.py -m replayserver -f herpaderp-10348.cnv -c 100 -i localhost:4040
 
-This will open up a server on localhost:4040
+This will open up a server on localhost:4040. Use your browser, and access
+this port: in response to a standard GET request, you will get a malformed
+response. Note that this may not render correctly, due to the HTTP response
+headers being broken.
